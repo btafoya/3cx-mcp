@@ -1,30 +1,39 @@
-# 3CX-MCP - Model Context Protocol Server for 3CX VoIP
+# 3CX-MCP - Model Context Protocol Client for 3CX VoIP
 
 ## Project Overview
 
-**Goal:** Build an MCP (Model Context Protocol) server that enables Claude Code and other LLMs to interact with 3CX VoIP server through its Configuration REST API.
+**Goal:** Build an MCP (Model Context Protocol) client that enables Claude Code and other LLMs to interact with 3CX VoIP server through its Configuration REST API (XAPI).
 
 **Status:** Early Planning Phase
+
+**Architecture Overview:**
+- The MCP client runs as a server component (per MCP spec) that exposes 3CX API functionality as MCP tools
+- The client handles OAuth2 authentication and token management for the 3CX API
+- LLMs invoke MCP tools which the client translates to 3CX XAPI calls
 
 ## Architecture
 
 ### Technology Stack
 - **Language:** Python
 - **MCP SDK:** https://github.com/modelcontextprotocol/python-sdk
-- **Target API:** 3CX Configuration REST API
+- **Target API:** 3CX Configuration REST API (XAPI)
+- **HTTP Client:** `httpx` for async requests
+- **Auth:** OAuth2 client_credentials flow
 
 ### Planned Structure
 ```
 3cx-mcp/
 ├── src/
 │   ├── __init__.py
-│   ├── server.py          # MCP server main entry point
-│   ├── client.py          # 3CX API client wrapper
+│   ├── main.py            # MCP server entry point (FastMCP)
+│   ├── auth.py            # OAuth2 token management
+│   ├── client.py          # 3CX XAPI client wrapper
 │   └── tools/             # MCP tool implementations
 │       ├── __init__.py
-│       ├── extensions.py  # Extension management
-│       ├── queues.py      # Queue management
+│       ├── departments.py # Department management
 │       ├── users.py       # User management
+│       ├── parking.py     # Parking management
+│       ├── links.py       # Live chat link management
 │       └── system.py      # System info/health
 ├── pyproject.toml         # Python project config
 ├── requirements.txt       # Dependencies
@@ -41,8 +50,8 @@
 - Token endpoint: `POST https://{PBX_FQDN}/connect/token`
 - Token expires after 60 minutes
 - Required parameters:
-  - `client_id`: `server_principal_id` (fixed)
-  - `client_secret`: Service Principal secret (configured in 3CX)
+  - `client_id`: Service Principal client ID (DN of the route point, configured in 3CX)
+  - `client_secret`: Service Principal API key (shown only once after creation)
   - `grant_type`: `client_credentials` (fixed)
 - Base URL format: `https://{PBX_FQDN}/xapi/v1/`
 
@@ -225,11 +234,11 @@ To enable API access, you must configure a Service Principal in 3CX:
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the MCP server
-python -m src.server
+# Run the MCP client (exposes tools to LLM via stdio)
+python -m src.main
 
 # For development with stdio transport
-mcp dev server.py
+uv run src/main.py
 ```
 
 ## Session Notes
@@ -242,6 +251,7 @@ mcp dev server.py
   - **humanizer**: Removes AI writing patterns, based on Wikipedia's "Signs of AI writing"
   - **anti-slop**: Detects/cleans generic AI patterns in text, code, and design
 - Code quality and writing standards added to CLAUDE.md
+- **Architecture Clarification**: This is an MCP client (using FastMCP) that exposes 3CX API functionality as MCP tools to LLMs
 - **API Discovery**: Retrieved official 3CX XAPI endpoint specifications
   - Authentication is OAuth2 client_credentials, not Basic Auth
   - Base URL is `/xapi/v1/`, not `/api/config`
