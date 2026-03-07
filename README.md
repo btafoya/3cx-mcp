@@ -1,29 +1,26 @@
-# 3CX MCP Client
+# 3CX Debugging MCP Server
 
-Model Context Protocol client for 3CX VoIP server. Enables Claude Code and other LLMs to interact with 3CX through its Configuration REST API (XAPI).
+Model Context Protocol server for 3CX VoIP server debugging. Enables Claude Code and other LLMs to debug call flow issues by directly accessing 3CX database and log files.
 
 ## Overview
 
-This MCP client exposes 3CX API functionality as MCP tools, allowing LLMs to manage:
+This MCP server runs directly on a 3CX server and exposes call flow debugging capabilities as MCP tools. It uses direct database access and log file parsing—no XAPI licensing required. Works with 3CX Professional edition.
 
-- **Departments (Groups)** - Create, update, delete, query departments
-- **Users** - User account management, bulk operations, phone management
-- **Shared Parking** - Configure call parking slots
-- **Live Chat Links** - Manage 3CX live chat URLs
-- **System Info** - Version, health checks, system settings
-- **AI Settings** - Vector stores, AI resources, templates
-- **Backups** - Create, list, restore system backups
-- **Activity Logs** - Query system event logs
-- **Active Calls** - View and manage ongoing calls
-- **Contacts** - Contact directory management
-- **Blocklists** - IP and phone number blocking
+Available tool categories:
+
+- **Call Records** - Query calls, trace flow, debug failures, get statistics
+- **Participants** - Extension, queue, and trunk participant lookups
+- **Queues** - Queue statistics, abandoned calls, SLA metrics
+- **Logs** - Parse and search 3CX log files for SIP messages
+- **Audit** - Configuration change history from audit log
 
 ## Requirements
 
-- 3CX Version 20+
-- 8SC and higher ENT/AI or ENT+ license
+- 3CX Version 20+ (Professional edition compatible)
+- Direct PostgreSQL database access
+- Access to 3CX log files
 - Python 3.10+
-- Service Principal configured in 3CX
+- Runs on the 3CX server itself
 
 ## Installation
 
@@ -42,39 +39,32 @@ pipx install .
 Set environment variables:
 
 ```bash
-export THREECX_SERVER_URL=https://pbx.example.com
-export THREECX_CLIENT_ID=your-client-id
-export THREECX_CLIENT_SECRET=your-api-key
+export DB_NAME=3cxpbx
+export DB_USER=3cxpbx
+export DB_PASSWORD=your-db-password
+export DB_SOCKET_DIR=/var/run/postgresql
+export LOG_PATH=/var/lib/3cxpbx/Bin/3CXPhoneSystem.log
 ```
 
 ### Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `THREECX_SERVER_URL` | Yes | - | 3CX server URL (e.g., https://pbx.example.com) |
-| `THREECX_PORT` | No | 5001 | Port number |
-| `THREECX_CLIENT_ID` | Yes | - | Service Principal client ID (DN) |
-| `THREECX_CLIENT_SECRET` | Yes | - | Service Principal API key |
-| `THREECX_VERIFY_SSL` | No | true | Verify SSL certificates |
-
-### Service Principal Setup
-
-1. Go to 3CX Web Client > Integrations > API
-2. Press "Add" to create a new client application
-3. Specify the Client ID (DN for accessing the route point)
-4. Check "XAPI Access Enabled" checkbox
-5. Specify Department and Role for appropriate access level
-6. System Owner/System Admin grants system-wide rights
-7. Save the API key (client_secret) - shown only once
-
-**Important:**
-- Only one access token can be created at a time per Service Principal
-- The API key is shown only once after creation
-- Use a backup or separate PBX instance for testing
+| `DB_NAME` | No | 3cxpbx | PostgreSQL database name |
+| `DB_USER` | No | 3cxpbx | Database user |
+| `DB_PASSWORD` | Yes (if not using socket) | - | Database password |
+| `DB_HOST` | No | localhost | Database host |
+| `DB_PORT` | No | 5432 | Database port |
+| `DB_SOCKET_DIR` | No | /var/run/postgresql | Unix socket directory |
+| `DB_USE_SOCKET` | No | true | Use Unix socket instead of TCP |
+| `LOG_PATH` | No | /var/lib/3cxpbx/Bin/3CXPhoneSystem.log | Main 3CX log file |
+| `LOG_DIR` | No | /var/lib/3cxpbx/Bin | Log directory |
+| `MCP_NAME` | No | 3cx-debugging | MCP server name |
+| `ENABLE_WRITES` | No | true | Enable write operations |
 
 ## Usage
 
-### Running the MCP Client
+### Running the MCP Server
 
 After installation with pipx:
 
@@ -82,36 +72,36 @@ After installation with pipx:
 3cx-mcp
 ```
 
+Or:
+
+```bash
+3cx-debug-mcp
+```
+
 For development without installation:
 
 ```bash
-python -m src.main
+python -m src
 ```
 
-### Claude Desktop Configuration
+### Claude Code CLI Configuration
 
-Add to your Claude Desktop MCP configuration:
+Install the MCP server in one command:
 
-```json
-{
-  "mcpServers": {
-    "3cx-debug": {
-      "command": "3cx-mcp",
-      "env": {
-        "THREECX_DB_NAME": "3cxpbx",
-        "THREECX_DB_USER": "postgres",
-        "THREECX_DB_PASSWORD": "your-db-password",
-        "THREECX_LOG_PATH": "/var/lib/3cxpbx/Instance1/Logs/3CXPhoneSystem.log"
-      }
-    }
-  }
-}
+```bash
+claude mcp add --transport stdio \
+  --env DB_NAME=3cxpbx \
+  --env DB_USER=3cxpbx \
+  --env DB_PASSWORD=your-db-password \
+  --env LOG_PATH=/var/lib/3cxpbx/Bin/3CXPhoneSystem.log \
+  3cx-debug -- 3cx-mcp
 ```
 
-**Note:** The debugging add-on runs directly on the 3CX server and requires:
-- Direct PostgreSQL database access
-- Access to 3CX log files
-- No XAPI licensing required (Professional edition compatible)
+**Important:** This server must run on the 3CX server itself because it requires:
+- Direct PostgreSQL database access (via Unix socket)
+- Filesystem access to 3CX log files
+
+For more options, see the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
 
 ## Available MCP Tools
 
@@ -119,94 +109,74 @@ Add to your Claude Desktop MCP configuration:
 
 | Tool | Description |
 |------|-------------|
-| `get_system_info` | Get 3CX version and verify connectivity |
+| `health_check` | Check server health and connectivity |
+| `get_database_info` | Get database version and available tables |
+| `server_info` | Get server information and configuration |
 
-### Department Tools
-
-| Tool | Description |
-|------|-------------|
-| `list_departments` | List all departments with optional member expansion |
-| `create_department` | Create a new department |
-| `get_department` | Get department details |
-| `update_department` | Update department settings |
-| `delete_department` | Delete a department |
-| `department_exists` | Check if a department name exists |
-| `get_department_members` | List members of a department |
-
-### User Tools
+### Call Tools
 
 | Tool | Description |
 |------|-------------|
-| `list_users` | List users with pagination and filtering |
-| `create_user` | Create a new user account |
-| `get_user` | Get user details |
-| `update_user` | Update user settings |
-| `delete_users` | Delete multiple users |
-| `user_exists` | Check if user email exists |
-| `find_user_by_email` | Find user by email address |
-| `get_first_available_extension` | Get next available extension number |
+| `list_calls` | List call records with filtering and pagination |
+| `get_call_details` | Get full details of a specific call |
+| `get_active_calls` | Get all currently active calls |
+| `get_call_flow` | Get complete call flow path with segments |
+| `get_call_statistics` | Get call statistics for a date range |
+| `search_calls` | Search call records by participant info |
+| `trace_call` | Get complete call trace combining database and logs |
+| `debug_failed_call` | Debug a failed call to identify root cause |
+| `get_failed_calls` | Get list of failed calls |
+| `get_cdr_by_call_history` | Get CDR entries for a call history ID |
 
-### Parking Tools
-
-| Tool | Description |
-|------|-------------|
-| `list_parking` | List all shared parking slots |
-| `create_parking` | Create a shared parking slot |
-| `get_parking_by_number` | Get parking slot by number |
-| `delete_parking` | Delete a parking slot |
-
-### Live Chat Tools
+### Participant Tools
 
 | Tool | Description |
 |------|-------------|
-| `link_exists` | Check if live chat link exists |
-| `validate_link` | Validate a friendly URL |
-| `create_link` | Create a live chat link |
+| `get_participant` | Get participant details by ID |
+| `search_participants` | Search participants by number or name |
+| `get_extension_participants` | Get participants for a specific extension |
+| `get_queue_participants` | Get participants for a specific queue |
+| `get_trunk_participants` | Get participants for a specific trunk |
 
-## API Capabilities
+### Queue Tools
 
-### OData Query Support
+| Tool | Description |
+|------|-------------|
+| `get_queue_statistics` | Get queue statistics for a date range |
+| `get_abandoned_calls` | Get abandoned queue calls |
+| `get_queue_sla` | Get SLA compliance metrics |
+| `get_agent_performance` | Get agent performance statistics |
 
-All list endpoints support OData query parameters:
+### Log Tools
 
-- `$filter` - Filter results
-- `$top` - Limit results (pagination)
-- `$skip` - Skip records (pagination)
-- `$expand` - Expand related entities
-- `$select` - Specify fields to return
-- `$orderby` - Sort order
-- `$search` - Full-text search
+| Tool | Description |
+|------|-------------|
+| `search_logs` | Search log files for a pattern |
+| `get_call_logs` | Get log entries for a specific call |
+| `get_error_logs` | Get recent error log entries |
+| `get_sip_messages` | Extract SIP messages for a call |
 
-### Additional XAPI Endpoints
+### Audit Tools
 
-The 3CX XAPI also provides access to:
+| Tool | Description |
+|------|-------------|
+| `get_audit_log` | Get audit log entries |
+| `get_config_changes` | Get configuration changes for a period |
+| `get_user_activity` | Get user activity from audit log |
 
-- **Active Calls** - View and drop ongoing calls
-- **Activity Log** - Query system events
-- **AI Settings** - Vector stores and AI resources
-- **Backups** - Create and restore backups
-- **Blocklist** - IP address blocking
-- **Call History** - Call records and reports
-- **Contacts** - Contact directory
-- **Conference Settings** - MCU configuration
-- **Voicemail Settings** - Voicemail configuration
+## Database Access
 
-See [3CX API Reference](./3cx-API.md) for complete endpoint documentation.
+The server uses PostgreSQL's Unix socket for connection (default: `/var/run/postgresql`). This is the preferred method for connections from the same host as the database.
+
+When using socket authentication (default):
+- No password required if configured with `peer` or `trust` auth
+- Set `DB_USE_SOCKET=false` to use TCP with password authentication
 
 ## Documentation
 
-### Main Documentation
-- [3CX API Reference](./3cx-API.md) - Complete API documentation
 - [Project Documentation](./CLAUDE.md) - Architecture and development notes
-- [Design Document](./DESIGN.md) - System architecture and component design
-
-### Debugging Add-On (Professional Edition)
-
-The **Debugging Add-On** provides call flow debugging capabilities for 3CX Professional without requiring enterprise XAPI licensing. It runs directly on the 3CX server using direct database access and log file parsing.
-
-- [Quick Start Guide](./DEBUGGING-ADD-ON.md) - Installation and usage instructions
+- [Design Document](./DESIGN-debugging-add-on.md) - Database + log parsing architecture
 - [Requirements](./REQUIREMENTS-debugging-add-on.md) - Feature requirements specification
-- [Design](./DESIGN-debugging-add-on.md) - Database + log parsing architecture
 
 ### Database Schema Documentation
 - [Schema Index](./docs/schema/INDEX.md) - Quick reference and key queries
@@ -217,16 +187,11 @@ The **Debugging Add-On** provides call flow debugging capabilities for 3CX Profe
 - [Config Tables](./docs/schema/config-tables.md) - `audit_log` and system configuration
 - [Other Tables](./docs/schema/other-tables.md) - Quality metrics, chat, meetings, CRM
 
-### Debugging Add-On
-- [Requirements](./REQUIREMENTS-debugging-add-on.md) - Call flow debugging requirements
-- [Design](./DESIGN-debugging-add-on.md) - Database + log parsing architecture (Professional edition)
-
 ## Resources
 
-- [3CX Configuration API Documentation](https://www.3cx.com/docs/configuration-rest-api/)
-- [3CX XAPI Tutorial (GitHub)](https://github.com/3cx/xapi-tutorial)
-- [OpenAPI Specification](https://raw.githubusercontent.com/3cx/xapi-tutorial/master/swagger.yaml)
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+- [FastMCP Documentation](https://github.com/jlowin/fastmcp)
+- [asyncpg Documentation](https://magicstack.github.io/asyncpg/)
 
 ## Development
 
@@ -235,12 +200,11 @@ The **Debugging Add-On** provides call flow debugging capabilities for 3CX Profe
 ```
 3cx-mcp/
 ├── src/
-│   ├── __init__.py         # Debugging add-on main entry point
+│   ├── __init__.py         # Main entry point
 │   ├── config.py           # Configuration management
 │   ├── database/
 │   │   ├── __init__.py
-│   │   ├── connection.py   # PostgreSQL connection pool
-│   │   └── schema.py       # Database schema models
+│   │   └── connection.py   # PostgreSQL connection pool
 │   ├── logs/
 │   │   ├── __init__.py
 │   │   └── parser.py       # Log file parser
@@ -251,26 +215,20 @@ The **Debugging Add-On** provides call flow debugging capabilities for 3CX Profe
 │       ├── queues.py       # Queue statistics tools
 │       ├── logs.py         # Log parsing tools
 │       └── audit.py        # Audit log tools
-├── requirements-debugging.txt  # Debugging add-on dependencies
-├── DEBUGGING-ADD-ON.md     # Quick start guide
-├── REQUIREMENTS-debugging-add-on.md  # Feature requirements
-├── DESIGN-debugging-add-on.md       # Architecture design
 ├── docs/schema/            # Database schema documentation
-├── DESIGN.md
-├── 3cx-API.md
+├── DESIGN-debugging-add-on.md
+├── REQUIREMENTS-debugging-add-on.md
 ├── CLAUDE.md
+├── pyproject.toml
 └── README.md
 ```
 
-### Debugging Add-On Structure
-
-The debugging add-on has its own source structure for running directly on 3CX Professional:
+### Component Overview
 
 | Module | Purpose |
 |--------|---------|
 | `config.py` | Configuration from environment variables |
 | `database/connection.py` | Async PostgreSQL connection pool |
-| `database/schema.py` | Dataclass models for all 3CX tables |
 | `logs/parser.py` | 3CX log file parser with SIP message extraction |
 | `tools/calls.py` | Call queries, flow tracing, failure debugging |
 | `tools/participants.py` | Extension/queue/trunk queries |
@@ -278,22 +236,9 @@ The debugging add-on has its own source structure for running directly on 3CX Pr
 | `tools/logs.py` | Log file queries and error extraction |
 | `tools/audit.py` | Configuration change audit trail |
 
-### Running Tests
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=src
-
-# Run specific test file
-pytest tests/test_client.py
-```
-
 ## License
 
-This project is provided as-is for use with 3CX VoIP systems.
+MIT License
 
 ## Contributing
 
@@ -304,7 +249,6 @@ Contributions are welcome. Please ensure:
 
 ## Security Notes
 
-- Store API credentials in environment variables, not in code
-- Use HTTPS connections in production
-- Verify SSL certificates unless using self-signed certs in a trusted environment
-- The API key is shown only once - store it securely
+- Store database credentials in environment variables, not in code
+- The server runs on localhost via Unix socket by default
+- Limit write operations by setting `ENABLE_WRITES=false` if needed
