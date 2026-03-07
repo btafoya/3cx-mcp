@@ -1,0 +1,16 @@
+# 3CX Debugging MCP Server Requirements
+# For 3CX Professional Edition (Linux)
+
+# MCP Server
+mcp>=0.9.0
+fastmcp>=0.9.0
+
+# Database
+asyncpg>=0.29.0  # Async PostgreSQL driver
+
+# Configuration
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+
+# Optional utilities
+watchfiles>=0.21.0  # For file watching (optional)

@@ -188,9 +188,31 @@ See [3CX API Reference](./3cx-API.md) for complete endpoint documentation.
 
 ## Documentation
 
+### Main Documentation
 - [3CX API Reference](./3cx-API.md) - Complete API documentation
 - [Project Documentation](./CLAUDE.md) - Architecture and development notes
 - [Design Document](./DESIGN.md) - System architecture and component design
+
+### Debugging Add-On (Professional Edition)
+
+The **Debugging Add-On** provides call flow debugging capabilities for 3CX Professional without requiring enterprise XAPI licensing. It runs directly on the 3CX server using direct database access and log file parsing.
+
+- [Quick Start Guide](./DEBUGGING-ADD-ON.md) - Installation and usage instructions
+- [Requirements](./REQUIREMENTS-debugging-add-on.md) - Feature requirements specification
+- [Design](./DESIGN-debugging-add-on.md) - Database + log parsing architecture
+
+### Database Schema Documentation
+- [Schema Index](./docs/schema/INDEX.md) - Quick reference and key queries
+- [Schema Overview](./docs/schema/README.md) - Database structure summary
+- [Call Tables](./docs/schema/call-tables.md) - `cl_calls`, `cl_participants`, `cl_segments`, `cl_party_info`
+- [CDR Tables](./docs/schema/cdr-tables.md) - `cdroutput` and related tables
+- [Media Tables](./docs/schema/media-tables.md) - Recordings, voicemail, queue statistics
+- [Config Tables](./docs/schema/config-tables.md) - `audit_log` and system configuration
+- [Other Tables](./docs/schema/other-tables.md) - Quality metrics, chat, meetings, CRM
+
+### Debugging Add-On
+- [Requirements](./REQUIREMENTS-debugging-add-on.md) - Call flow debugging requirements
+- [Design](./DESIGN-debugging-add-on.md) - Database + log parsing architecture (Professional edition)
 
 ## Resources
 
@@ -206,26 +228,48 @@ See [3CX API Reference](./3cx-API.md) for complete endpoint documentation.
 ```
 3cx-mcp/
 ├── src/
-│   ├── __init__.py
-│   ├── main.py              # FastMCP server entry point
-│   ├── auth.py              # OAuth2 token management
-│   ├── client.py            # 3CX XAPI client wrapper
-│   ├── types.py             # Pydantic models
+│   ├── __init__.py         # Debugging add-on main entry point
+│   ├── config.py           # Configuration management
+│   ├── database/
+│   │   ├── __init__.py
+│   │   ├── connection.py   # PostgreSQL connection pool
+│   │   └── schema.py       # Database schema models
+│   ├── logs/
+│   │   ├── __init__.py
+│   │   └── parser.py       # Log file parser
 │   └── tools/
 │       ├── __init__.py
-│       ├── system.py        # System info tools
-│       ├── departments.py   # Department management
-│       ├── users.py         # User management
-│       ├── parking.py       # Parking management
-│       └── links.py         # Live chat links
-├── tests/
-├── pyproject.toml
-├── requirements.txt
+│       ├── calls.py        # Call record tools
+│       ├── participants.py # Participant/extension tools
+│       ├── queues.py       # Queue statistics tools
+│       ├── logs.py         # Log parsing tools
+│       └── audit.py        # Audit log tools
+├── requirements-debugging.txt  # Debugging add-on dependencies
+├── DEBUGGING-ADD-ON.md     # Quick start guide
+├── REQUIREMENTS-debugging-add-on.md  # Feature requirements
+├── DESIGN-debugging-add-on.md       # Architecture design
+├── docs/schema/            # Database schema documentation
 ├── DESIGN.md
 ├── 3cx-API.md
 ├── CLAUDE.md
 └── README.md
 ```
+
+### Debugging Add-On Structure
+
+The debugging add-on has its own source structure for running directly on 3CX Professional:
+
+| Module | Purpose |
+|--------|---------|
+| `config.py` | Configuration from environment variables |
+| `database/connection.py` | Async PostgreSQL connection pool |
+| `database/schema.py` | Dataclass models for all 3CX tables |
+| `logs/parser.py` | 3CX log file parser with SIP message extraction |
+| `tools/calls.py` | Call queries, flow tracing, failure debugging |
+| `tools/participants.py` | Extension/queue/trunk queries |
+| `tools/queues.py` | Queue statistics and call center analytics |
+| `tools/logs.py` | Log file queries and error extraction |
+| `tools/audit.py` | Configuration change audit trail |
 
 ### Running Tests
 
