@@ -10,13 +10,20 @@ The 3CX Debugging Add-On is an MCP server that runs directly on the 3CX Professi
 
 ## Installation
 
-On your 3CX server:
+On your 3CX server, first ensure pipx is installed:
+
+```bash
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
+```
+
+Then clone and install:
 
 ```bash
 cd /opt
 git clone https://github.com/your-repo/3cx-mcp.git
 cd 3cx-mcp
-pip install -r requirements-debugging.txt
+pipx install .
 ```
 
 ## Configuration
@@ -33,6 +40,14 @@ export MCP_NAME=3cx-debugging
 ```
 
 ## Running the Server
+
+After installation with pipx:
+
+```bash
+3cx-mcp
+```
+
+For development without installation:
 
 ```bash
 python -m src
@@ -89,6 +104,25 @@ python -m src
 
 ## Claude Desktop Configuration
 
+For local MCP server (with pipx):
+
+```json
+{
+  "mcpServers": {
+    "3cx-debugging": {
+      "command": "3cx-mcp",
+      "env": {
+        "DB_NAME": "3cxpbx",
+        "DB_USE_SOCKET": "true",
+        "LOG_PATH": "/var/lib/3cxpbx/Bin/3CXPhoneSystem.log"
+      }
+    }
+  }
+}
+```
+
+For remote 3CX server via SSH:
+
 ```json
 {
   "mcpServers": {
@@ -96,28 +130,9 @@ python -m src
       "command": "ssh",
       "args": [
         "user@3cx-server",
-        "cd /opt/3cx-mcp && python -m src"
+        "3cx-mcp"
       ],
       "env": {}
-    }
-  }
-}
-```
-
-Or for local MCP server:
-
-```json
-{
-  "mcpServers": {
-    "3cx-debugging": {
-      "command": "python",
-      "args": ["-m", "src"],
-      "cwd": "/opt/3cx-mcp",
-      "env": {
-        "DB_NAME": "3cxpbx",
-        "DB_USE_SOCKET": "true",
-        "LOG_PATH": "/var/lib/3cxpbx/Bin/3CXPhoneSystem.log"
-      }
     }
   }
 }

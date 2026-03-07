@@ -28,13 +28,13 @@ This MCP client exposes 3CX API functionality as MCP tools, allowing LLMs to man
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pipx install git+https://github.com/btafoya/3cx-mcp.git
 ```
 
-Or using uv:
+Or for local development:
 
 ```bash
-uv pip install -r requirements.txt
+pipx install .
 ```
 
 ## Configuration
@@ -76,14 +76,16 @@ export THREECX_CLIENT_SECRET=your-api-key
 
 ### Running the MCP Client
 
+After installation with pipx:
+
 ```bash
-python -m src.main
+3cx-mcp
 ```
 
-Or with uv:
+For development without installation:
 
 ```bash
-uv run src/main.py
+python -m src.main
 ```
 
 ### Claude Desktop Configuration
@@ -93,18 +95,23 @@ Add to your Claude Desktop MCP configuration:
 ```json
 {
   "mcpServers": {
-    "3cx": {
-      "command": "uvx",
-      "args": ["3cx-mcp"],
+    "3cx-debug": {
+      "command": "3cx-mcp",
       "env": {
-        "THREECX_SERVER_URL": "https://pbx.example.com",
-        "THREECX_CLIENT_ID": "your-client-id",
-        "THREECX_CLIENT_SECRET": "your-secret"
+        "THREECX_DB_NAME": "3cxpbx",
+        "THREECX_DB_USER": "postgres",
+        "THREECX_DB_PASSWORD": "your-db-password",
+        "THREECX_LOG_PATH": "/var/lib/3cxpbx/Instance1/Logs/3CXPhoneSystem.log"
       }
     }
   }
 }
 ```
+
+**Note:** The debugging add-on runs directly on the 3CX server and requires:
+- Direct PostgreSQL database access
+- Access to 3CX log files
+- No XAPI licensing required (Professional edition compatible)
 
 ## Available MCP Tools
 
